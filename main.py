@@ -54,43 +54,17 @@ def addStaff():
 		address = raw_input('Enter address of employee: ')
 		dob = raw_input('Enter DOB of employee: ')
 
-		try:		
-			mySql_insert_query = """INSERT INTO STAFF (STAFF_ID, FNAME, LNAME, EMAIL, ADDRESS, DOB, CATEGORY ) VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-			cursor.execute(mySql_insert_query, (staffID, Fname, Lname, email, address, dob, employeeType))
-			db.commit()
-
-			while(1): 
-				contactNumber = raw_input('Enter contact number of employee: ')
-				if len(contactNumber) != 10:
-					print 
-					print ("Invalid contact number")
-					return
-				contactNumber = int(contactNumber)
-				mySql_insert_query = """INSERT INTO STAFF_CONTACT (STAFF_ID, CONTACT_NUMBER ) VALUES (%s, %s)"""
-				cursor.execute(mySql_insert_query, (staffID, contactNumber))
-				db.commit()
-				ch = raw_input("Enter Another contact number? (Y-Yes / N-No) : ")
-				if ch == 'N' or ch == 'n' or ch == 'no' or ch == 'No' or ch == 'NO':
-					break
-			staffID = staffID + 1	
-		
-		except :
-			print ("Error")
-			db.rollback()
-
 		employeeType = int(raw_input('Enter employee type (0 for chef, 1 for waiter, 2 for manager): '))
 		if employeeType != 0 and employeeType != 1 and employeeType !=  2:
 			print 
 			print ('Invalid employee type')
 			print
 			return
-	except:
-		print ("Invalid input(s)")
-		return
-	
 
+		mySql_insert_query = """INSERT INTO STAFF (STAFF_ID, FNAME, LNAME, EMAIL, ADDRESS, DOB, CATEGORY ) VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+		cursor.execute(mySql_insert_query, (staffID, Fname, Lname, email, address, dob, employeeType))
+		db.commit()
 
-	try:
 		if employeeType == 0:
 			wexp = int(raw_input('Enter WORK EXPERIENCE of chef in years: '))
 			mySql_insert_query = """INSERT INTO CHEF (STAFF_ID, WORK_EXPERIENCE) VALUES (%s, %s)"""
@@ -98,12 +72,29 @@ def addStaff():
 		elif employeeType == 1:
 			proflang = raw_input('Enter proficient language of waitor in years: ')
 			mySql_insert_query = """INSERT INTO WAITER (STAFF_ID, LANGUAGE) VALUES (%s, %s)"""
-			cursor.execute(mySql_insert_query, (employeeID - 1, proflang))
-		db.commit()			
+			cursor.execute(mySql_insert_query, (staffID - 1, proflang))
+		db.commit()
 
-	except:
+		while(1): 
+			contactNumber = raw_input('Enter contact number of employee: ')
+			if len(contactNumber) != 10:
+				print 
+				print ("Invalid contact number")
+				return
+			contactNumber = int(contactNumber)
+			mySql_insert_query = """INSERT INTO STAFF_CONTACT (STAFF_ID, CONTACT_NUMBER ) VALUES (%s, %s)"""
+			cursor.execute(mySql_insert_query, (staffID, contactNumber))
+			db.commit()
+			ch = raw_input("Enter Another contact number? (Y-Yes / N-No) : ")
+			if ch == 'N' or ch == 'n' or ch == 'no' or ch == 'No' or ch == 'NO':
+				break
+		staffID = staffID + 1	
+		print("Added Staff!!")
+	except :
 		print ("Error")
 		db.rollback()
+
+		
 
 
 def deleteStaff():
@@ -136,10 +127,10 @@ def deleteStaff():
 			cursor.execute("""DELETE from WAITER WHERE STAFF_ID = %s;""", (empID,))
 			cursor.execute("""DELETE from STAFF WHERE STAFF_ID = %s;""", (empID,))
 			db.commit()
+		print("Fired Staff!!")
 	except:
 		print ("Error!")
 		return
-	return
 
 def addMenu():
 	global foodID
@@ -164,9 +155,8 @@ def addMenu():
 		cursor.execute("""INSERT INTO MENU VALUES (%s,%s,%s,%s,%s,%s);""",(foodID,item,about,price,0,0))
 		cursor.execute("""INSERT INTO FOOD_CATEGORY VALUES (%s,%s);""",(foodID,foodCat))
 		db.commit()
-		print ("added new menu item")
+		print ("Added new menu item")
 		foodID=foodID+1
-		# cursor.close()
 	except:
 		db.rollback()
 	# db.close()
@@ -229,7 +219,7 @@ def addCustomer():
 		cursor.execute(mySql_insert_query, (customerID, Fname, Lname, contactNo))
 		db.commit()
 		customerID = customerID + 1
-
+		print("Added!!")
 	except:
 		print ("Error")
 		db.rollback()
@@ -249,7 +239,7 @@ def updateCustomer():
 
 		cursor.execute("""UPDATE CUSTOMER SET CONTACT_NUMBER = %s WHERE CUSTOMER_ID = %s;""", (contactNo, custid,))	
 		db.commit()
-
+		print("Updated!!")
 	except:
 		print ("Error")
 		db.rollback()
@@ -312,6 +302,7 @@ def addStaffDependent():
 		mySql_insert_query = """INSERT INTO STAFF_ASSOCIATES (STAFF_ID, FNAME, LNAME, ADDRESS, CONTACT_NUMBER) VALUES (%s,%s,%s,%s,%s);"""
 		cursor.execute(mySql_insert_query,(stid,edfname,edlname,edadd,edcno))
 		db.commit()
+		print("Added!!")
 	except :
 		print ("Error")
 		db.rollback()
@@ -359,7 +350,7 @@ def placeOrder():
 	global invoiceID
 	custoption = int(raw_input('Customer already a member or not? (1 for yes, 2 for no)'))
 
-	if custoption == 0:
+	if custoption == 2:
 		addCustomer()
 
 	try:
@@ -407,8 +398,6 @@ def placeOrder():
 		foodid = int(food_resp[0])
 		chefid = int(chef_resp[0])
 		rating = 5
-		# cursor.execute("""INSERT INTO ORDER VALUES (%s,%s,%s,%s,%s,%s,%s);""",(orderID,invoiceID,foodid,chefid,discnt,quantity,rating))
-		# db.commit()
 
 		mySql_insert_query = """INSERT INTO ORDERS (ORDER_ID, INVOICE_ID, FOOD_ID, STAFF_ID, DISCOUNT, QUANTITY, RATING) VALUES (%s, %s, %s, %s, %s, %s, %s)"""
 		cursor.execute(mySql_insert_query, (orderID, invoiceID, foodid, chefid, discnt, quantity, rating))
@@ -441,6 +430,8 @@ def placeOrder():
 	cursor.execute("""UPDATE COMPLETE_INFO SET TOTAL_AMOUNT = %s WHERE INVOICE_ID = %s;""", (totamt, invoiceID,))
 	db.commit()
 	invoiceID = invoiceID + 1;
+
+	print("Thank you for ordering!!")
 
 
 def makePayment():
@@ -496,6 +487,50 @@ def showMostOrdered():
 	for i in items:
 		print(str(i[0])+"\n")
 
+def rateOrder():
+	foodname = raw_input("Enter food name you want to rate : ")
+	print("Rate this item: \n")
+	cursor.execute("""SELECT * FROM MENU WHERE NAME = %s;""",(foodname,))
+	rowcount = cursor.rowcount
+	if rowcount == 0:
+		print ("\nNo such food item.")
+		return
+	foodresp = cursor.fetchone()
+
+	stars = int(raw_input("Enter number of stars: (1 or 2 or 3 or 4 or 5) : "))
+	if stars > 5 or stars < 1:
+		print("Invalid rating")
+		return
+
+	totrating = foodresp[5] + stars
+
+	cursor.execute("""UPDATE MENU SET RATING = %s , NO_OF_TIMES_ORDERED = %s WHERE NAME = %s;""", (totrating, foodresp[4]+1, foodname,))
+	db.commit()
+	return
+
+def setManager():
+	managerid = int(raw_input("Enter Manager - id : "))
+	staff_id = int(raw_input("Enter Staff - id : "))
+	# cursor.execute("""SELECT NAME FROM MENU WHERE NO_OF_TIMES_ORDERED = %s;""", (number,))
+
+	cursor.execute("""SELECT STAFF_ID FROM STAFF WHERE STAFF_ID = %s AND CATEGORY = %s;""",(managerid,2,))
+	rowcount = cursor.rowcount
+	if rowcount == 0:
+		print ("\nInvalid Manager ID.")
+		return
+
+	cursor.execute("""SELECT STAFF_ID FROM STAFF WHERE STAFF_ID = %s AND CATEGORY <> %s;""",(staff_id,2,))
+	rowcount = cursor.rowcount
+	if rowcount == 0:
+		print ("\nInvalid Staff ID.")
+		return
+
+	mySql_insert_query = """INSERT INTO MANAGES (MANAGER_ID, STAFF_ID) VALUES (%s,%s);"""
+	cursor.execute(mySql_insert_query,(managerid, staff_id))
+	db.commit()
+
+	print("Manager set!!")
+		
 
 while True:
 	print("1: Add new Staff")
@@ -513,6 +548,7 @@ while True:
 	print("13: Search Food item by category")
 	print("14: Make Payment")
 	print("15: Show Most Ordered Item")
+	print("16: Set Manager for staff")
 	print("0: exit")
 	choice = int(input("Enter your choice: "))
 
@@ -560,6 +596,9 @@ while True:
 
 	elif choice == 15:
 		showMostOrdered()
+
+	elif choice == 16:
+		setManager()
 
 	elif choice == 0:
 		break
