@@ -204,6 +204,30 @@ def changePrice():
 		print ("Error")
 		db.rollback()
 
+
+def removeitem():
+
+	item = raw_input('Enter name of the item you want to remove from menu')
+
+	try:
+		cursor.execute("""SELECT COUNT(*) FROM MENU WHERE FOOD_ITEM = %s;""",(item,))
+		exists = cursor.fetchone()
+
+		if exists[0] == 0 :
+			print
+			print "Item does not exist in the Menu"
+			return
+
+		cursor.execute("""DELETE FROM MENU WHERE FOOD_ITEM = %s;""",(item,))
+		db.commit()
+		# cursor.close()
+		print
+		print "Item deleted from Menu"
+	
+	except:
+		print "Error"
+		db.rollback()
+		
 	# cursor.close()
 	# db.close()
 
