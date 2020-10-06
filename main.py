@@ -129,7 +129,7 @@ def deleteStaff():
 			db.commit()
 		print("Fired Staff!!")
 	except:
-		print ("Error!")
+		print ("Since this Staff was involved in an order,  we want to maintain its record. Hence we can't delete details of a staff who already prepared or served an order.")
 		return
 
 def addMenu():
@@ -397,7 +397,7 @@ def placeOrder():
 		chef_resp = cursor.fetchone()
 		foodid = int(food_resp[0])
 		chefid = int(chef_resp[0])
-		rating = 5
+		rating = rateOrder(food_resp[1], quantity)
 
 		mySql_insert_query = """INSERT INTO ORDERS (ORDER_ID, INVOICE_ID, FOOD_ID, STAFF_ID, DISCOUNT, QUANTITY, RATING) VALUES (%s, %s, %s, %s, %s, %s, %s)"""
 		cursor.execute(mySql_insert_query, (orderID, invoiceID, foodid, chefid, discnt, quantity, rating))
@@ -419,9 +419,9 @@ def placeOrder():
 		db.commit()
 
 		orderID = orderID + 1
-		totamt = totamt + int(food_resp[3])
+		totamt = totamt + int(food_resp[3])*quantity - int(discnt)*quantity
 
-		rateOrder(food_resp[1], quantity)
+		
 
 		flag = raw_input(("Finish Ordering? (enter Y for Yes, N for No)"))	
 		if flag == 'Y' or flag == 'y':
@@ -459,7 +459,7 @@ def makePayment():
 
 def rateOrder(foodname, quantity):
 	# foodname = int(raw_input("Enter food name you want to rate : "))
-	print("Rate this item: \n")
+	print("Rate this item:")
 	cursor.execute("""SELECT * FROM MENU WHERE NAME = %s;""",(foodname,))
 	rowcount = cursor.rowcount
 	if rowcount == 0:
@@ -476,7 +476,7 @@ def rateOrder(foodname, quantity):
 
 	cursor.execute("""UPDATE MENU SET RATING = %s , NO_OF_TIMES_ORDERED = %s WHERE NAME = %s;""", (totrating, foodresp[4]+quantity, foodname,))
 	db.commit()
-	return
+	return stars
 
 def showMostOrdered():
 	cursor.execute("""SELECT MAX(NO_OF_TIMES_ORDERED) FROM MENU;""")
@@ -487,7 +487,7 @@ def showMostOrdered():
 	for i in items:
 		print(str(i[0])+"\n")
 
-def rateOrder():
+def rateOrder2():
 	foodname = raw_input("Enter food name you want to rate : ")
 	print("Rate this item: \n")
 	cursor.execute("""SELECT * FROM MENU WHERE NAME = %s;""",(foodname,))
@@ -509,28 +509,78 @@ def rateOrder():
 	return
 
 def setManager():
-	managerid = int(raw_input("Enter Manager - id : "))
-	staff_id = int(raw_input("Enter Staff - id : "))
-	# cursor.execute("""SELECT NAME FROM MENU WHERE NO_OF_TIMES_ORDERED = %s;""", (number,))
+	try:
+		managerid = int(raw_input("Enter Manager - id : "))
+		staff_id = int(raw_input("Enter Staff - id : "))
+		# cursor.execute("""SELECT NAME FROM MENU WHERE NO_OF_TIMES_ORDERED = %s;""", (number,))
 
-	cursor.execute("""SELECT STAFF_ID FROM STAFF WHERE STAFF_ID = %s AND CATEGORY = %s;""",(managerid,2,))
-	rowcount = cursor.rowcount
-	if rowcount == 0:
-		print ("\nInvalid Manager ID.")
-		return
+		cursor.execute("""SELECT STAFF_ID FROM STAFF WHERE STAFF_ID = %s AND CATEGORY = %s;""",(managerid,2,))
+		rowcount = cursor.rowcount
+		if rowcount == 0:
+			print ("\nInvalid Manager ID.")
+			return
 
-	cursor.execute("""SELECT STAFF_ID FROM STAFF WHERE STAFF_ID = %s AND CATEGORY <> %s;""",(staff_id,2,))
-	rowcount = cursor.rowcount
-	if rowcount == 0:
-		print ("\nInvalid Staff ID.")
-		return
+		cursor.execute("""SELECT STAFF_ID FROM STAFF WHERE STAFF_ID = %s AND CATEGORY <> %s;""",(staff_id,2,))
+		rowcount = cursor.rowcount
+		if rowcount == 0:
+			print ("\nInvalid Staff ID.")
+			return
 
-	mySql_insert_query = """INSERT INTO MANAGES (MANAGER_ID, STAFF_ID) VALUES (%s,%s);"""
-	cursor.execute(mySql_insert_query,(managerid, staff_id))
-	db.commit()
+		mySql_insert_query = """INSERT INTO MANAGES (MANAGER_ID, STAFF_ID) VALUES (%s,%s);"""
+		cursor.execute(mySql_insert_query,(managerid, staff_id))
+		db.commit()
 
-	print("Manager set!!")
-		
+		print("Manager set!!")
+	except:
+		print("Error!")
+		db.rollback()
+
+
+def generateEInvoice():
+	try:
+		invid = int(raw_input("Enter the invoice ID to generate E-Invoice"))
+		cursor.execute("""SELECT * FROM COMPLETE_INFO WHERE INVOICE_ID = %s;""", (invid,))
+		rowcount = cursor.rowcount
+		if rowcount == 0:
+			print("Invalid Invoice ID.")
+			return
+		invoice = cursor.fetchone()
+
+		cursor.execute("""SELECT * FROM PAYMENT WHERE INVOICE_ID = %s;""", (invid,))
+		rowcount = cursor.rowcount
+		if rowcount == 0:
+			print("Payment for this inovice id still not made.")
+			return
+
+		paym = cursor.fetchone()
+
+		cursor.execute("""SELECT * FROM ORDERS WHERE INVOICE_ID = %s;""", (invid,))
+		orders = cursor.fetchall()
+		i=1
+		for order in orders:
+			cursor.execute("""SELECT * FROM MENU WHERE FOOD_ID = %s;""", (order[2],))
+			fooditem = cursor.fetchone()
+			print(str(i) + ".\n\tItem = " + str(fooditem[1]) + "\n\tQuantity = " + str(order[5]) + "\n\tDiscount = " + str(order[4]) + "\n\tPrice per unit item = " + str(fooditem[3]) + "\n")
+			mySql_insert_query = """INSERT INTO GENERATING_EINVOICE (CUSTOMER_ID, INVOICE_ID, PAYMENT_ID, ORDER_ID) VALUES (%s,%s,%s,%s);"""
+			cursor.execute(mySql_insert_query,(invoice[1],invid, paym[0] ,order[0]))
+			db.commit()
+			i = i+1
+
+		print("Total Amount = "+ str(invoice[4]))
+		print("Paid by: " + paym[3])
+
+		print("*****E-INVOICE GENERATED*****\n")
+
+	except:
+		print("Error!")
+		db.rollback()
+
+
+	
+
+
+
+
 
 while True:
 	print("1: Add new Staff")
@@ -547,8 +597,9 @@ while True:
 	print("12: Search Food item by name")
 	print("13: Search Food item by category")
 	print("14: Make Payment")
-	print("15: Show Most Ordered Item")
-	print("16: Set Manager for staff")
+	print("15: Generate E-Invoice")
+	print("16: Show Most Ordered Item")
+	print("17: Set Manager for staff")
 	print("0: exit")
 	choice = int(input("Enter your choice: "))
 
@@ -562,7 +613,7 @@ while True:
 		addMenu()
 
 	elif choice == 4:
-		rateOrder()
+		rateOrder2()
 
 	elif choice == 5:
 		placeOrder()
@@ -595,9 +646,12 @@ while True:
 		makePayment()
 
 	elif choice == 15:
-		showMostOrdered()
+		generateEInvoice()
 
 	elif choice == 16:
+		showMostOrdered()
+
+	elif choice == 17:
 		setManager()
 
 	elif choice == 0:
