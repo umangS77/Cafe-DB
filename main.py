@@ -1,22 +1,25 @@
 import MySQLdb
 import datetime
 
-db = MySQLdb.connect('localhost','DAproject', '$onofaguN77', 'CAFE')
+#change the username(root) and password(abcd1234) here to your own mysql username and password
+db = MySQLdb.connect('localhost','root', 'abcd1234', 'CAFE')
 cursor = db.cursor()
 
-
+#initializing staffID
 cursor.execute("""SELECT MAX(STAFF_ID) FROM STAFF;""")
 resp = cursor.fetchone()
 if resp[0] is None:
 	staffID = 1
 staffID = resp[0] + 1
 
+#initializing foodID
 cursor.execute("""SELECT MAX(FOOD_ID) FROM MENU;""")
 resp = cursor.fetchone()
 if resp[0] is None:
 	foodID = 1;
 foodID = resp[0] + 1
 
+#initializing customerID
 cursor.execute("""SELECT MAX(CUSTOMER_ID) FROM CUSTOMER;""")
 resp = cursor.fetchone()
 if resp[0] is None:
@@ -24,6 +27,7 @@ if resp[0] is None:
 else:
 	customerID = resp[0] + 1
 
+#initializing orderID
 cursor.execute("""SELECT MAX(ORDER_ID) FROM `ORDERS`;""")
 resp = cursor.fetchone()
 if resp[0] is None:
@@ -31,6 +35,7 @@ if resp[0] is None:
 else:
 	orderID = resp[0] + 1
 
+#initializing paymentID
 cursor.execute("""SELECT MAX(PAYMENT_ID) FROM PAYMENT;""")
 resp = cursor.fetchone()
 if resp[0] is None:
@@ -38,6 +43,7 @@ if resp[0] is None:
 else:
 	paymentID = resp[0] + 1
 
+#initializing invoiceID
 cursor.execute("""SELECT MAX(INVOICE_ID) FROM COMPLETE_INFO;""")
 resp = cursor.fetchone()
 if resp[0] is None:
@@ -45,6 +51,7 @@ if resp[0] is None:
 else:
 	invoiceID = resp[0] + 1
 
+#function to add staff details into database
 def addStaff():
 	global staffID
 	try:
@@ -52,8 +59,9 @@ def addStaff():
 		Lname = raw_input('Enter last name of employee: ')
 		email = raw_input('Enter email of employee: ')
 		address = raw_input('Enter address of employee: ')
+		sex = raw_input('Enter sex of the staff. (M-Male / F-Female / O-Other): ')
 		dob = raw_input('Enter DOB of employee: ')
-
+		salary = int(raw_input('Enter the base salary: '))
 		employeeType = int(raw_input('Enter employee type (0 for chef, 1 for waiter, 2 for manager): '))
 		if employeeType != 0 and employeeType != 1 and employeeType !=  2:
 			print 
@@ -61,8 +69,12 @@ def addStaff():
 			print
 			return
 
-		mySql_insert_query = """INSERT INTO STAFF (STAFF_ID, FNAME, LNAME, EMAIL, ADDRESS, DOB, CATEGORY ) VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-		cursor.execute(mySql_insert_query, (staffID, Fname, Lname, email, address, dob, employeeType))
+		mySql_insert_query = """INSERT INTO STAFF (STAFF_ID, FNAME, LNAME, EMAIL, ADDRESS, SEX, DOB, CATEGORY ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+		cursor.execute(mySql_insert_query, (staffID, Fname, Lname, email, address, sex, dob, employeeType))
+		db.commit()
+
+		mySql_insert_query = """INSERT INTO SALARY (STAFF_ID, BASE_SALARY, BONUS, DEDUCTIONS) VALUES (%s, %s, %s, %s)"""	
+		cursor.execute(mySql_insert_query, (staffID, salary, 0, 0))
 		db.commit()
 
 		if employeeType == 0:
@@ -94,19 +106,18 @@ def addStaff():
 		print ("Error")
 		db.rollback()
 
-		
-
-
+#function to delete staff details from database.
+#Note that a staff details can't be deleted if he is involved in any relation like ordering or serving
 def deleteStaff():
 	try:
-		empID = int(raw_input('Enter Staff ID of the staff you want to fire: '))
+		empID = int(raw_input('Enter Staff ID of the staff whose details want to delete: '))
 	except:
 		print ("Invalid input")
 		return
 	cursor.execute("""SELECT * from STAFF WHERE STAFF_ID = %s;""", (empID,))
 	rowcount = cursor.rowcount
 	if rowcount == 0:
-		print ('\nInvalid employee ID')
+		print ('Invalid employee ID')
 		return
 
 	try:
@@ -127,15 +138,24 @@ def deleteStaff():
 			cursor.execute("""DELETE from WAITER WHERE STAFF_ID = %s;""", (empID,))
 			cursor.execute("""DELETE from STAFF WHERE STAFF_ID = %s;""", (empID,))
 			db.commit()
-		print("Fired Staff!!")
+
+		cursor.execute("""SELECT * from STAFF WHERE STAFF_ID = %s;""", (empID,))
+		rowcount = cursor.rowcount
+		if rowcount !=0:
+			cursor.execute("""DELETE from STAFF_CONTACT WHERE STAFF_ID = %s;""", (empID,))
+			cursor.execute("""DELETE from STAFF_ASSOCIATES WHERE STAFF_ID = %s;""", (empID,))
+			cursor.execute("""DELETE from SALARY WHERE STAFF_ID = %s;""", (empID,))
+			cursor.execute("""DELETE from STAFF WHERE STAFF_ID = %s;""", (empID,))
+			db.commit()
+		print("Details Deleted!!")
 	except:
-		print ("Since this Staff was involved in an order,  we want to maintain its record. Hence we can't delete details of a staff who already prepared or served an order.")
+		print ("Since this Staff was involved in a relation,  we want to maintain its record. Hence we can't delete details of a staff who already prepared or served an order or managed someone.")
 		return
 
+#function to add an item into food menu
 def addMenu():
 	global foodID
 	item=raw_input("Enter the name of food item: ")
-	
 	cursor.execute("""SELECT COUNT(*) FROM MENU WHERE NAME = %s;""",(item,))
 	exists = cursor.fetchone()
 	if exists[0] != 0:
@@ -158,28 +178,33 @@ def addMenu():
 		print ("Added new menu item")
 		foodID=foodID+1
 	except:
+		print("Error!")
 		db.rollback()
-	# db.close()
 
-# def deleteMenu():
-# 	try:
-# 		food_ID = int(raw_input('Enter Food ID of the item you want to remove: '))
-# 	except:
-# 		print ("Invalid input")
-# 		return
-# 	cursor.execute("""SELECT * from MENU WHERE FOOD_ID = %s;""", (food_ID,))
-# 	rowcount = cursor.rowcount
-# 	if rowcount == 0:
-# 		print ('\nInvalid food ID')
-# 		return
+#function to delete a food item from menu.
+#Note that if a food item has been ordered, we cannot remove it since we wish to maintain its record
+def deleteMenu():
+	try:
+		food_id = int(raw_input('Enter Food ID of the item you want to remove: '))
+		cursor.execute("""SELECT * from MENU WHERE FOOD_ID = %s;""", (food_id,))
+		rowcount = cursor.rowcount
+		if rowcount == 0:
+			print ('\nInvalid food ID')
+			return
 
-# 	resp = cursor.fetchone()
-# 	cursor.execute("""DELETE from MENU WHERE FOOD_ID = %s;""", (food_ID,))
-# 	db.commit()
+		resp = cursor.fetchone()
+		cursor.execute("""DELETE from FOOD_CATEGORY WHERE FOOD_ID = %s;""", (food_id,))
+		cursor.execute("""DELETE from MENU WHERE FOOD_ID = %s;""", (food_id,))
+		
+		db.commit()
 
-# 	print("REMOVED \n")
-# 	print ("Error!")
+		print("REMOVED!!")
+	except:
+		print ("Cannot remove a food item that has been ordered since we wnat to maintain its record")
+		db.rollback()
 
+
+#function to change the price of a food item
 def changePrice():
 	item =  raw_input('Enter name of item whose price you want to change: ')
 	cursor.execute("""SELECT COUNT(*) FROM MENU WHERE NAME = %s;""",(item,))
@@ -204,9 +229,7 @@ def changePrice():
 		print ("Error")
 		db.rollback()
 
-	# cursor.close()
-	# db.close()
-
+#function to add details of a customer to the database
 def addCustomer():
 	global customerID
 	Fname = raw_input('Enter first name of customer: ')
@@ -224,8 +247,8 @@ def addCustomer():
 		print ("Error")
 		db.rollback()
 
+#function to update details of a customer 
 def updateCustomer():
-
 	custid =  int(raw_input('Enter Customer ID whose details you want to change: '))
 	try:
 		cursor.execute("""SELECT * FROM `CUSTOMER` WHERE CUSTOMER_ID = %s;""",(custid,))
@@ -244,6 +267,7 @@ def updateCustomer():
 		print ("Error")
 		db.rollback()
 
+#function to calculate the salary of an employee
 def calcSalary():
 	staff_id = raw_input('Enter STAFF_ID whose total salary you want to know: ')
 	cursor.execute("""SELECT * FROM `SALARY` WHERE STAFF_ID = %s;""",(staff_id,))
@@ -255,9 +279,9 @@ def calcSalary():
 
 	response = cursor.fetchone()
 	totsal = response[1] + response[2] - response[3];
-	print("\n Total Salary = " + str(totsal))
+	print("Base Salary = " + str(response[1]) + "\nBonus = " + str(response[2]) + "\nDeductions = " + str(response[3]) + "\n-------------------\nTotal Salary = " + str(totsal))
 
-
+#function to calculate average rating of a food item
 def calcAvgRating():
 	try:
 		food_name = raw_input('Enter Name of food item whose rating you want to know: ')
@@ -273,7 +297,7 @@ def calcAvgRating():
 		print ("Error")
 		db.rollback()
 
-
+#function to add Staff Dependent details
 def addStaffDependent():
 	try:
 		stid=int(raw_input("Enter the staff id: "))
@@ -307,7 +331,7 @@ def addStaffDependent():
 		print ("Error")
 		db.rollback()
 
-
+#function to search food item using food name as parameter
 def searchFoodByName():
 	try:
 		foodname = raw_input("Enter the name of the food item you want to know about: ")
@@ -326,6 +350,7 @@ def searchFoodByName():
 		print ("Error")
 		db.rollback()
 
+#function to search for all the food items of a particular category
 def searchFoodByCategory():
 	try:
 		foodcat = raw_input("Enter the category of the food item you want to know about: ")
@@ -344,11 +369,12 @@ def searchFoodByCategory():
 		print("Error")
 		db.rollback
 
+#function to place order 
 def placeOrder():
 	global orderID
 	global paymentID
 	global invoiceID
-	custoption = int(raw_input('Customer already a member or not? (1 for yes, 2 for no)'))
+	custoption = int(raw_input('Customer already a member or not? (1 for yes, 2 for no): '))
 
 	if custoption == 2:
 		addCustomer()
@@ -423,7 +449,7 @@ def placeOrder():
 
 		
 
-		flag = raw_input(("Finish Ordering? (enter Y for Yes, N for No)"))	
+		flag = raw_input(("Finish Ordering? (enter Y for Yes, N for No): "))	
 		if flag == 'Y' or flag == 'y':
 			break;
 
@@ -433,7 +459,7 @@ def placeOrder():
 
 	print("Thank you for ordering!!")
 
-
+#function to initiate the payment for any order
 def makePayment():
 	invID = int(raw_input("Enter the Invoice ID: "))
 	try: 
@@ -457,6 +483,7 @@ def makePayment():
 		print("Error")
 		db.rollback
 
+#function to rate any food item that the customer has ordered
 def rateOrder(foodname, quantity):
 	# foodname = int(raw_input("Enter food name you want to rate : "))
 	print("Rate this item:")
@@ -478,6 +505,7 @@ def rateOrder(foodname, quantity):
 	db.commit()
 	return stars
 
+#function to show the most ordered item of the menu
 def showMostOrdered():
 	cursor.execute("""SELECT MAX(NO_OF_TIMES_ORDERED) FROM MENU;""")
 	number = cursor.fetchone()
@@ -487,6 +515,7 @@ def showMostOrdered():
 	for i in items:
 		print(str(i[0])+"\n")
 
+#function to rate food item
 def rateOrder2():
 	foodname = raw_input("Enter food name you want to rate : ")
 	print("Rate this item: \n")
@@ -508,6 +537,7 @@ def rateOrder2():
 	db.commit()
 	return
 
+#function to set manager of a particular employee
 def setManager():
 	try:
 		managerid = int(raw_input("Enter Manager - id : "))
@@ -535,10 +565,10 @@ def setManager():
 		print("Error!")
 		db.rollback()
 
-
+#function to generate E-Invoice for an invoice
 def generateEInvoice():
 	try:
-		invid = int(raw_input("Enter the invoice ID to generate E-Invoice"))
+		invid = int(raw_input("Enter the invoice ID to generate E-Invoice: "))
 		cursor.execute("""SELECT * FROM COMPLETE_INFO WHERE INVOICE_ID = %s;""", (invid,))
 		rowcount = cursor.rowcount
 		if rowcount == 0:
@@ -576,31 +606,95 @@ def generateEInvoice():
 		db.rollback()
 
 
-	
+#function to edit staff details
+def editStaffDetails():
+	try:
+		staffid =  int(raw_input('Enter Staff ID of the staff whose details you want to change: '))
+		cursor.execute("""SELECT * FROM STAFF WHERE STAFF_ID = %s;""", (staffid,))
+		rowcount = cursor.rowcount
+		if rowcount == 0:
+			print("Invalid Staff ID.")
+			return
+		print("1- Email")
+		print("2- Address")
+		print("3- Phone Number")
+		print("4- Salary")
+		print("5- Add Bonus")
+		print("6- Add Deduction")
 
+		ch = int(raw_input("Enter the detail you want to change"))
+		if ch  > 0 and ch < 7:
+			pass
+		else:
+			print("Invalid input")
+			return
 
+		if ch == 1:
+			newmail = raw_input("Enter the new email id")
+			cursor.execute("""UPDATE STAFF SET EMAIL = %s WHERE STAFF_ID = %s;""", (newmail, staffid,))	
+			db.commit()
 
+		elif ch == 2:
+			newadd = raw_input("Enter the new address")
+			cursor.execute("""UPDATE STAFF SET ADDRESS = %s WHERE STAFF_ID = %s;""", (newadd, staffid,))	
+			db.commit()
+
+		elif ch == 3:
+			oldnumber = raw_input("Enter the old number")
+			newnumber = raw_input("Enter the new number")
+			cursor.execute("""UPDATE STAFF_CONTACT SET CONTACT_NUMBER = %s WHERE STAFF_ID = %s AND CONTACT_NUMBER = %s;""", (newnumber, staffid, oldnumber,))	
+			db.commit()
+
+		elif ch == 4:
+			newsal = int(raw_input("Enter the new salary"))
+			cursor.execute("""UPDATE SALARY SET BASE_SALARY = %s WHERE STAFF_ID = %s;""", (newsal, staffid,))	
+			db.commit()
+
+		elif ch == 5:
+			newbon = int(raw_input("Enter the new bonus to replace existing bonus"))
+			cursor.execute("""UPDATE SALARY SET BONUS = %s WHERE STAFF_ID = %s;""", (newbon, staffid,))	
+			db.commit()
+
+		elif ch == 6:
+			newdeduc = int(raw_input("Enter the new deduction to replace existing deduction"))
+			cursor.execute("""UPDATE SALARY SET DEDUCTIONS = %s WHERE STAFF_ID = %s;""", (newdeduc, staffid,))	
+			db.commit()
+		print("Details Updated!!")
+	except:
+		print("Error!")
+		db.rollback()
 
 
 while True:
+	# Staff related functions
+	print
 	print("1: Add new Staff")
 	print("2: Delete a Staff")
-	print("3: Add new menu item")
-	print("4: Rate Food Item")
-	print("5: Place Order")
-	print("6: Add new customer")
-	print("7: Update custome details")
-	print("8: Change Price of Food Item")
-	print("9: See Average Rating of Food Item")
-	print("10: Calculate Salary of Emloyee")
-	print("11: Add Staff-Dependent Details")
+	print("3: Add Staff-Dependent Details")
+	print("4: Set Manager for staff")
+	print("5: Calculate Salary of Emloyee")
+	print("6: Update Staff details")
+	print
+	#Customer related functions
+	print("7: Add new customer")
+	print("8: Update customer details")
+	print
+	#Food item related function
+	print("9: Add new menu item")
+	print("10: Change Price of Food Item")
+	print("11: Show Most Ordered Item")
 	print("12: Search Food item by name")
 	print("13: Search Food item by category")
-	print("14: Make Payment")
-	print("15: Generate E-Invoice")
-	print("16: Show Most Ordered Item")
-	print("17: Set Manager for staff")
-	print("0: exit")
+	print("14: Rate Food Item")
+	print("15: See Average Rating of Food Item")
+	print("16: Delete Food Item")
+	print
+	#order related function
+	print("17: Place Order")
+	print("18: Make Payment")
+	print("19: Generate E-Invoice")
+	print("0: Exit")
+	print
 	choice = int(input("Enter your choice: "))
 
 	if choice == 1:
@@ -610,31 +704,31 @@ while True:
 		deleteStaff()
 
 	elif choice == 3:
-		addMenu()
+		addStaffDependent()
 
 	elif choice == 4:
-		rateOrder2()
+		setManager()
 
 	elif choice == 5:
-		placeOrder()
-
-	elif choice == 6:
-		addCustomer()
-
-	elif choice == 7:
-		updateCustomer()
-
-	elif choice == 8:
-		changePrice()
-
-	elif choice == 9:
-		calcAvgRating()
-
-	elif choice == 10:
 		calcSalary()
 
+	elif choice == 6:
+		editStaffDetails()
+
+	elif choice == 7:
+		addCustomer()
+
+	elif choice == 8:
+		updateCustomer()
+
+	elif choice == 9:
+		addMenu()
+
+	elif choice == 10:
+		changePrice()
+
 	elif choice == 11:
-		addStaffDependent()
+		showMostOrdered()
 
 	elif choice == 12:
 		searchFoodByName()
@@ -643,25 +737,30 @@ while True:
 		searchFoodByCategory()
 
 	elif choice == 14:
-		makePayment()
+		rateOrder2()
 
 	elif choice == 15:
-		generateEInvoice()
-
-	elif choice == 16:
-		showMostOrdered()
+		calcAvgRating()
 
 	elif choice == 17:
-		setManager()
+		placeOrder()	
+
+	elif choice == 18:
+		makePayment()
+
+	elif choice == 16:
+		deleteMenu()
+
+	elif choice == 19:
+		generateEInvoice()
 
 	elif choice == 0:
 		break
 
-
 	else:
 		print ("Enter a valid choice!!!")
 
-	print ("---------------------------------------------------------------------------------------------------------------------------------------------")
+	print ("\n------------------------------------------------------------------------\n")
 
 cursor.close()
 db.close()
