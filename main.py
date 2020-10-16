@@ -2,7 +2,7 @@ import MySQLdb
 import datetime
 
 #change the username(root) and password(abcd1234) here to your own mysql username and password
-db = MySQLdb.connect('localhost','DAproject', '$onofaguN77', 'CAFE')
+db = MySQLdb.connect('localhost','localhost', 'abcd1234', 'CAFE')
 cursor = db.cursor()
 
 #initializing staffID
